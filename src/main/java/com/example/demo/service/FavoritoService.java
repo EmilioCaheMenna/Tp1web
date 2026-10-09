@@ -22,6 +22,7 @@ public class FavoritoService {
     public FavoritoResponseDTO crear(FavoritoRequestDTO dto) {
         Favorito favorito = new Favorito();
         favorito.setProductoId(dto.productoId());
+        favorito.setListaId(dto.listaId());
         favorito.setNotaPersonal(dto.notaPersonal());
         favorito.setFechaAgregado(LocalDateTime.now());
 
@@ -46,6 +47,7 @@ public class FavoritoService {
                 .orElseThrow(() -> new RuntimeException("Favorito no encontrado"));
 
         existente.setProductoId(dto.productoId());
+        existente.setListaId(dto.listaId());
         existente.setNotaPersonal(dto.notaPersonal());
 
         Favorito actualizado = repository.save(existente);
@@ -63,6 +65,7 @@ public class FavoritoService {
         return new FavoritoResponseDTO(
             favorito.getId(),
             favorito.getProductoId(),
+            favorito.getListaId(),
             favorito.getNotaPersonal(),
             favorito.getFechaAgregado()
         );

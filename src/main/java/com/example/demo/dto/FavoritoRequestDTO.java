@@ -7,6 +7,9 @@ public record FavoritoRequestDTO(
     @NotNull(message = "El ID del producto es obligatorio")
     Long productoId,
 
-    @NotBlank(message = "La nota personal no puede estar vacía")
+    @NotNull(message = "El ID de la lista es obligatorio")
+    Long listaId,
+
+    @NotBlank(message = "La nota personal no puede estar vacia")
     String notaPersonal
 ) {}

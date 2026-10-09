@@ -1,77 +1,42 @@
-# TP1 · Spring Boot, API REST y arquitectura en capas
+# TP2 - Persistencia y Arquitectura Hexagonal
 
-Punto de partida del práctico. Está armada la **configuración e
-infraestructura transversal** que van a necesitar sin importar cómo
-resuelvan cada consigna; lo que falta —el diseño y la lógica propia de cada
-recurso— se va a ir sumando a esta rama a medida que avance la cursada.
+## Cómo levantar PostgreSQL y aplicar las migraciones
 
-## Cómo levantar el proyecto
-
-Requiere Java 25. Usar siempre el wrapper, nunca un `mvn` instalado aparte:
-
+Para levantar la base de datos PostgreSQL, ejecutar el siguiente comando en la raíz del proyecto, el cual utilizará el archivo `docker-compose.yml`:
+```bash
+docker-compose up -d
 ```
-# Windows
-.\mvnw.cmd spring-boot:run
+Esto iniciará una instancia de PostgreSQL en el puerto `5433` (por conflictos locales, se mapea allí). 
 
-# macOS/Linux
-./mvnw spring-boot:run
-```
+**Migraciones con Flyway:**
+Las migraciones se aplican automáticamente al iniciar la aplicación Spring Boot, gracias a que hemos configurado Spring Boot con `spring-boot-starter-flyway`. 
+Los archivos de migración se encuentran en `src/main/resources/db/migration` y siguen el formato de nombres estricto `V{versión}__{descripción}.sql`.
 
-Cuando el log muestre `Started DemoApplication`, la app queda escuchando en
-`http://localhost:8080`.
+## Puertos y Adaptadores: Qué cambió y qué no
 
-Para compilar y correr los tests: `./mvnw test` (o `.\mvnw.cmd test`).
+Al migrar de memoria a JPA, las siguientes clases **no tuvieron que ser modificadas**:
+* `FavoritoService`
+* `FavoritoController`
+* DTOs de favoritos
 
-## Endpoints disponibles hoy
+Solo se tuvieron que agregar:
+* `FavoritoEntity` (para mapear a base de datos)
+* `FavoritoJpaRepository` (la interfaz de Spring Data JPA)
+* `FavoritoRepositoryAdapter` (implementa el puerto)
 
-| Método | Path | Qué hace |
-|---|---|---|
-| GET | `/health` | Chequeo de salud básico |
-| GET | `/ping` | Devuelve `pong`, sin JSON — otro chequeo trivial |
-| GET | `/api/productos` | Lista el catálogo completo de productos consumiendo DummyJSON |
-| GET | `/api/productos/{id}` | Obtiene un producto específico consumiendo DummyJSON |
-| GET | `/api/favoritos` | Lista todos los favoritos guardados en memoria |
-| POST | `/api/favoritos` | Crea un nuevo favorito |
-| GET | `/api/favoritos/{id}` | Obtiene un favorito por su ID |
-| PUT | `/api/favoritos/{id}` | Actualiza la nota o producto de un favorito |
-| DELETE| `/api/favoritos/{id}` | Elimina un favorito |
+**Por qué fue posible:**
+Porque la arquitectura está basada en *Puertos y Adaptadores*. `FavoritoRepository` actúa como un **puerto (un contrato)**. Tanto `InMemoryFavoritoRepository` del TP1 como `FavoritoRepositoryAdapter` del TP2 son **adaptadores intercambiables** que implementan la misma interfaz. El `FavoritoService` nunca se entera de qué implementación de infraestructura concreta se está usando, lo que permite cambiar el motor de persistencia sin alterar el dominio ni la capa de aplicación.
 
-Para acceder a la documentación interactiva de la API con Swagger UI, ingresar a:
-`http://localhost:8080/swagger-ui/index.html`
+## Evolución del Esquema (Migración V4)
 
-```
-curl http://localhost:8080/health
-curl http://localhost:8080/ping
-```
+¿Por qué se resuelve con una migración nueva y no modificando las anteriores?
+Porque Flyway calcula un checksum por cada migración que ya fue aplicada con éxito. Si modificamos `V1`, `V2` o `V3`, el checksum diferiría de lo guardado en la base de datos (`flyway_schema_history`) y Flyway rechazaría iniciar la aplicación. Además, en bases de producción donde las migraciones pasadas ya corrieron, las nuevas estructuras y transformaciones de datos deben modelarse obligatoriamente como nuevos pasos incrementales hacia adelante.
 
-## Qué ya está armado
+## Transacciones (ACID) en mover favoritos
 
-- **`config/RestClientConfig`**: bean de `RestClient` apuntado a la
-  `base-url` de DummyJSON (`app.dummyjson.base-url` en
-  `application.properties`). Listo para inyectar.
-- **`config/OpenApiConfig`**: metadata general de Swagger UI.
-- **`client/dummyjson/DummyJsonProducto` y `DummyJsonProductosResponse`**:
-  la forma exacta del JSON que devuelve `https://dummyjson.com/products` —
-  para no tener que adivinar los nombres de campo del proveedor externo.
-- **`exception/GlobalExceptionHandler`** (+ `RecursoNoEncontradoException` y
-  `ServicioExternoException`): manejo uniforme de errores para toda la API
-  (`ProblemDetail`). Ya contempla 404 y errores de un servicio externo —
-  se reusa tal cual para cualquier recurso nuevo que se agregue.
+¿Qué podría quedar inconsistente si sacamos el `@Transactional` y una escritura falla?
+Si la operación para transferir favoritos no fuera atómica y la eliminación de la lista de origen fallara o el sistema colapsara luego de haber cambiado el `lista_id` de los favoritos pero antes de eliminar la lista, tendríamos la base de datos en un estado inconsistente. La lista original persistiría a pesar de haber perdido sus elementos y la operación de "mover y borrar lista original" quedaría incompleta y en un estado inválido. Gracias a `@Transactional`, logramos **Atomicidad**: o bien ocurre todo de manera conjunta (el traspaso y el borrado) y se comitea, o falla una de sus partes y se realiza un rollback automático de los pasos ejecutados en esa transacción, garantizando la consistencia global del sistema.
 
-## Qué se agregó en este TP
+## Colección de Pruebas (Archivo HTTP)
 
-- Un cliente propio implementado en `ProductoService` que usa el
-  `RestClient` configurado para llamar a `/products` y `/products/{id}`.
-- Un DTO propio (`ProductoDTO`) para exponer los productos con nuestra estructura.
-- Todo el recurso de favoritos: entidad (`Favorito`), repository en memoria (`FavoritoRepositoryImpl`), DTOs de entrada y salida, service (`FavoritoService`) y controller CRUD (`FavoritoController`).
-- Validaciones con `@Valid` y manejo de excepciones (404 y 400).
-- Documentación de controllers con `@Operation` para Swagger UI.
-
-## Dependencias
-
-- `spring-boot-starter-webmvc` — Spring MVC + Tomcat embebido.
-- `spring-boot-starter-validation` — Bean Validation (`@NotNull`, `@NotBlank`, ...).
-- `springdoc-openapi-starter-webmvc-ui` — Swagger UI / OpenAPI.
-
-![evidencia-del-funcionamiento](image.png)
-![evidencia-del-funcionamiento](image-1.png)
+Se incluye el archivo `tests.http` en la raíz del proyecto para probar un caso de éxito y de error de los nuevos endpoints, en el cual se valida por ejemplo el retorno de *HTTP 409 Conflict* si se intenta borrar una lista con elementos asociados.

@@ -1,5 +1,55 @@
+### ====================================================================
+### 0. Autenticación y Registro (TP3)
+### ====================================================================
+
+### 0.1 Registrar usuario nuevo (Caso de éxito -> 201 Created)
+POST http://localhost:8080/api/auth/registro
+Content-Type: application/json
+
+{
+  "email": "alumno@unvime.edu.ar",
+  "password": "miPassword123"
+}
+
+### 0.2 Registrar email duplicado (Caso de error -> 409 Conflict)
+POST http://localhost:8080/api/auth/registro
+Content-Type: application/json
+
+{
+  "email": "alumno@unvime.edu.ar",
+  "password": "otraPassword123"
+}
+
+### 0.3 Login con credenciales válidas (Caso de éxito -> 200 OK con token JWT)
+# @name login
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "alumno@unvime.edu.ar",
+  "password": "miPassword123"
+}
+
+### 0.4 Login con credenciales inválidas (Caso de error -> 401 Unauthorized)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "alumno@unvime.edu.ar",
+  "password": "passwordIncorrecta"
+}
+
+### 0.5 Acceder a /api/listas sin token (Caso de error -> 401 Unauthorized)
+GET http://localhost:8080/api/listas
+
+### ====================================================================
+### 1. Listas y Favoritos autenticados con Bearer Token (TP2 + TP3)
+### ====================================================================
+@token = {{login.response.body.token}}
+
 ### 1. Crear lista origen (Caso de éxito -> 201 Created)
 POST http://localhost:8080/api/listas
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -8,6 +58,7 @@ Content-Type: application/json
 
 ### 2. Crear lista destino (Caso de éxito -> 201 Created)
 POST http://localhost:8080/api/listas
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -16,23 +67,32 @@ Content-Type: application/json
 
 ### 3. Crear lista inválida sin nombre (Caso de error -> 400 Bad Request)
 POST http://localhost:8080/api/listas
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
   "nombre": ""
 }
 
-### 4. Listar todas las listas (Caso de éxito -> 200 OK)
+### 4. Listar todas las listas del usuario autenticado (Caso de éxito -> 200 OK)
 GET http://localhost:8080/api/listas
+Authorization: Bearer {{token}}
 
-### 5. Obtener una lista por ID (Caso de éxito -> 200 OK)
+### 5. Obtener una lista propia por ID (Caso de éxito -> 200 OK)
 GET http://localhost:8080/api/listas/2
+Authorization: Bearer {{token}}
 
-### 6. Obtener una lista inexistente (Caso de error -> 404 Not Found)
+### 6. Obtener una lista ajena, ej: lista 1 "Sin clasificar" del sistema (Caso de error -> 403 Forbidden)
+GET http://localhost:8080/api/listas/1
+Authorization: Bearer {{token}}
+
+### 7. Obtener una lista inexistente (Caso de error -> 404 Not Found)
 GET http://localhost:8080/api/listas/999
+Authorization: Bearer {{token}}
 
-### 7. Crear un favorito asociado a la lista 2 (Caso de éxito -> 201 Created)
+### 8. Crear un favorito asociado a la lista 2 (Caso de éxito -> 201 Created)
 POST http://localhost:8080/api/favoritos
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -41,8 +101,9 @@ Content-Type: application/json
   "notaPersonal": "Nota de prueba en lista 2"
 }
 
-### 8. Crear un favorito con listaId inexistente (Caso de error -> 404 Not Found)
+### 9. Crear un favorito con listaId inexistente (Caso de error -> 404 Not Found)
 POST http://localhost:8080/api/favoritos
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -51,23 +112,22 @@ Content-Type: application/json
   "notaPersonal": "Lista inexistente"
 }
 
-### 9. Obtener favoritos de la lista 2 (Caso de éxito -> 200 OK)
+### 10. Obtener favoritos de la lista 2 (Caso de éxito -> 200 OK)
 GET http://localhost:8080/api/listas/2/favoritos
-
-### 10. Obtener favoritos de lista inexistente (Caso de error -> 404 Not Found)
-GET http://localhost:8080/api/listas/999/favoritos
+Authorization: Bearer {{token}}
 
 ### 11. Intentar eliminar lista con favoritos (Caso de error -> 409 Conflict)
 DELETE http://localhost:8080/api/listas/2
+Authorization: Bearer {{token}}
 
 ### 12. Mover favoritos hacia una lista destino inexistente (Caso de error -> 404 Not Found)
 POST http://localhost:8080/api/listas/2/mover-favoritos?destinoId=999
+Authorization: Bearer {{token}}
 
 ### 13. Mover favoritos de lista 2 a lista 3 y eliminar lista 2 (Caso de éxito transaccional -> 204 No Content)
 POST http://localhost:8080/api/listas/2/mover-favoritos?destinoId=3
+Authorization: Bearer {{token}}
 
 ### 14. Verificar que los favoritos ahora están en la lista 3 (Caso de éxito -> 200 OK)
 GET http://localhost:8080/api/listas/3/favoritos
-
-### 15. Verificar que la lista 2 fue eliminada en la transacción (Caso de error esperado -> 404 Not Found)
-GET http://localhost:8080/api/listas/2
+Authorization: Bearer {{token}}

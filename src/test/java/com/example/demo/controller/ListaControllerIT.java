@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.model.Favorito;
 import com.example.demo.model.Lista;
 import com.example.demo.model.Usuario;
 import com.example.demo.repository.FavoritoRepository;
@@ -20,10 +21,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import java.time.LocalDateTime;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -65,6 +66,8 @@ class ListaControllerIT {
     private Usuario usuarioIntruso;
     private Usuario usuarioAdmin;
     private Lista listaDeDueno;
+    private Lista segundaListaDeDueno;
+    private Lista listaDeIntruso;
 
     @BeforeEach
     void setUp() {
@@ -83,6 +86,8 @@ class ListaControllerIT {
         ));
 
         listaDeDueno = listaRepository.save(new Lista(null, "Lista Privada de Dueno", usuarioDueno.getId()));
+        segundaListaDeDueno = listaRepository.save(new Lista(null, "Segunda Lista de Dueno", usuarioDueno.getId()));
+        listaDeIntruso = listaRepository.save(new Lista(null, "Lista de Intruso", usuarioIntruso.getId()));
     }
 
     @Test
@@ -114,6 +119,28 @@ class ListaControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void registro_emailNuevoYDuplicado_devuelve201YLuego409() throws Exception {
+        String body = """
+                {
+                  "email": "nuevo_registro@test.com",
+                  "password": "miPassword123"
+                }
+                """;
+
+        mockMvc.perform(post("/api/auth/registro")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.email").value("nuevo_registro@test.com"))
+                .andExpect(jsonPath("$.rol").value("USER"));
+
+        mockMvc.perform(post("/api/auth/registro")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isConflict());
     }
 
     @Test
@@ -150,5 +177,59 @@ class ListaControllerIT {
                         .header("Authorization", "Bearer " + tokenAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(listaDeDueno.getId()));
+    }
+
+    @Test
+    void listar_usuarioComunSoloVeSusListasYAdminVeTodas() throws Exception {
+        String tokenDueno = jwtService.generarToken(usuarioDueno.getId(), usuarioDueno.getEmail(), usuarioDueno.getRol());
+        String tokenAdmin = jwtService.generarToken(usuarioAdmin.getId(), usuarioAdmin.getEmail(), usuarioAdmin.getRol());
+
+        mockMvc.perform(get("/api/listas")
+                        .header("Authorization", "Bearer " + tokenDueno))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        mockMvc.perform(get("/api/listas")
+                        .header("Authorization", "Bearer " + tokenAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3));
+    }
+
+    @Test
+    void eliminarYMoverFavoritos_validaPropiedadYTransaccion_devuelve403Y409Y204() throws Exception {
+        String tokenDueno = jwtService.generarToken(usuarioDueno.getId(), usuarioDueno.getEmail(), usuarioDueno.getRol());
+        String tokenIntruso = jwtService.generarToken(usuarioIntruso.getId(), usuarioIntruso.getEmail(), usuarioIntruso.getRol());
+
+        favoritoRepository.save(new Favorito(null, 10L, listaDeDueno.getId(), "Producto favorito", LocalDateTime.now()));
+
+        // Intruso intenta borrar o ver favoritos de lista ajena -> 403 Forbidden
+        mockMvc.perform(delete("/api/listas/" + listaDeDueno.getId())
+                        .header("Authorization", "Bearer " + tokenIntruso))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/listas/" + listaDeDueno.getId() + "/favoritos")
+                        .header("Authorization", "Bearer " + tokenIntruso))
+                .andExpect(status().isForbidden());
+
+        // Dueno intenta borrar su lista que todavía tiene favoritos -> 409 Conflict
+        mockMvc.perform(delete("/api/listas/" + listaDeDueno.getId())
+                        .header("Authorization", "Bearer " + tokenDueno))
+                .andExpect(status().isConflict());
+
+        // Dueno mueve favoritos de su primera lista a la segunda -> 204 No Content y borra origen
+        mockMvc.perform(post("/api/listas/" + listaDeDueno.getId() + "/mover-favoritos")
+                        .param("destinoId", segundaListaDeDueno.getId().toString())
+                        .header("Authorization", "Bearer " + tokenDueno))
+                .andExpect(status().isNoContent());
+
+        // Ahora los favoritos están en la segunda lista y la primera ya no existe (404)
+        mockMvc.perform(get("/api/listas/" + segundaListaDeDueno.getId() + "/favoritos")
+                        .header("Authorization", "Bearer " + tokenDueno))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+
+        mockMvc.perform(get("/api/listas/" + listaDeDueno.getId())
+                        .header("Authorization", "Bearer " + tokenDueno))
+                .andExpect(status().isNotFound());
     }
 }

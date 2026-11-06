@@ -6,6 +6,7 @@ import java.util.Optional;
 
 public interface FavoritoRepository {
     List<Favorito> findAll();
+    List<Favorito> findByListaId(Long listaId);
     Optional<Favorito> findById(Long id);
     Favorito save(Favorito favorito);
     void deleteById(Long id);

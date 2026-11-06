@@ -1,40 +1,73 @@
-### POST /api/listas (crear)
+### 1. Crear lista origen (Caso de éxito -> 201 Created)
 POST http://localhost:8080/api/listas
 Content-Type: application/json
 
 {
-  "nombre": "Mi Lista de Prueba"
+  "nombre": "Regalos"
 }
 
-### POST /api/listas (crear destino)
+### 2. Crear lista destino (Caso de éxito -> 201 Created)
 POST http://localhost:8080/api/listas
 Content-Type: application/json
 
 {
-  "nombre": "Lista Destino"
+  "nombre": "Para comprar en oferta"
 }
 
-### POST /api/favoritos (crear favorito)
+### 3. Crear lista inválida sin nombre (Caso de error -> 400 Bad Request)
+POST http://localhost:8080/api/listas
+Content-Type: application/json
+
+{
+  "nombre": ""
+}
+
+### 4. Listar todas las listas (Caso de éxito -> 200 OK)
+GET http://localhost:8080/api/listas
+
+### 5. Obtener una lista por ID (Caso de éxito -> 200 OK)
+GET http://localhost:8080/api/listas/2
+
+### 6. Obtener una lista inexistente (Caso de error -> 404 Not Found)
+GET http://localhost:8080/api/listas/999
+
+### 7. Crear un favorito asociado a la lista 2 (Caso de éxito -> 201 Created)
 POST http://localhost:8080/api/favoritos
 Content-Type: application/json
 
 {
   "productoId": 1,
-  "listaId": 1,
-  "notaPersonal": "Nota de prueba"
+  "listaId": 2,
+  "notaPersonal": "Nota de prueba en lista 2"
 }
 
-### GET /api/listas/1/favoritos
-GET http://localhost:8080/api/listas/1/favoritos
+### 8. Crear un favorito con listaId inexistente (Caso de error -> 404 Not Found)
+POST http://localhost:8080/api/favoritos
+Content-Type: application/json
 
-### DELETE /api/listas/1 (debería fallar con 409 Conflict)
-DELETE http://localhost:8080/api/listas/1
+{
+  "productoId": 1,
+  "listaId": 999,
+  "notaPersonal": "Lista inexistente"
+}
 
-### POST /api/listas/1/mover-favoritos?destinoId=2 (mover)
-POST http://localhost:8080/api/listas/1/mover-favoritos?destinoId=2
-
-### GET /api/listas/2/favoritos (ahora debería estar aquí)
+### 9. Obtener favoritos de la lista 2 (Caso de éxito -> 200 OK)
 GET http://localhost:8080/api/listas/2/favoritos
 
-### DELETE /api/listas/1 (ya debería estar eliminada al mover)
-DELETE http://localhost:8080/api/listas/1
+### 10. Obtener favoritos de lista inexistente (Caso de error -> 404 Not Found)
+GET http://localhost:8080/api/listas/999/favoritos
+
+### 11. Intentar eliminar lista con favoritos (Caso de error -> 409 Conflict)
+DELETE http://localhost:8080/api/listas/2
+
+### 12. Mover favoritos hacia una lista destino inexistente (Caso de error -> 404 Not Found)
+POST http://localhost:8080/api/listas/2/mover-favoritos?destinoId=999
+
+### 13. Mover favoritos de lista 2 a lista 3 y eliminar lista 2 (Caso de éxito transaccional -> 204 No Content)
+POST http://localhost:8080/api/listas/2/mover-favoritos?destinoId=3
+
+### 14. Verificar que los favoritos ahora están en la lista 3 (Caso de éxito -> 200 OK)
+GET http://localhost:8080/api/listas/3/favoritos
+
+### 15. Verificar que la lista 2 fue eliminada en la transacción (Caso de error esperado -> 404 Not Found)
+GET http://localhost:8080/api/listas/2

@@ -24,6 +24,13 @@ public class FavoritoRepositoryAdapter implements FavoritoRepository {
     }
 
     @Override
+    public List<Favorito> findByListaId(Long listaId) {
+        return jpaRepository.findByListaId(listaId).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Optional<Favorito> findById(Long id) {
         return jpaRepository.findById(id).map(this::toDomain);
     }

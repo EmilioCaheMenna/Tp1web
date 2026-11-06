@@ -14,12 +14,17 @@ import java.util.stream.Collectors;
 public class FavoritoService {
 
     private final FavoritoRepository repository;
+    private final com.example.demo.repository.ListaRepository listaRepository;
 
-    public FavoritoService(FavoritoRepository repository) {
+    public FavoritoService(FavoritoRepository repository, com.example.demo.repository.ListaRepository listaRepository) {
         this.repository = repository;
+        this.listaRepository = listaRepository;
     }
 
     public FavoritoResponseDTO crear(FavoritoRequestDTO dto) {
+        if (!listaRepository.existsById(dto.listaId())) {
+            throw new com.example.demo.exception.RecursoNoEncontradoException("Lista no encontrada");
+        }
         Favorito favorito = new Favorito();
         favorito.setProductoId(dto.productoId());
         favorito.setListaId(dto.listaId());
@@ -45,6 +50,9 @@ public class FavoritoService {
     public FavoritoResponseDTO actualizar(Long id, FavoritoRequestDTO dto) {
         Favorito existente = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Favorito no encontrado"));
+        if (!listaRepository.existsById(dto.listaId())) {
+            throw new com.example.demo.exception.RecursoNoEncontradoException("Lista no encontrada");
+        }
 
         existente.setProductoId(dto.productoId());
         existente.setListaId(dto.listaId());

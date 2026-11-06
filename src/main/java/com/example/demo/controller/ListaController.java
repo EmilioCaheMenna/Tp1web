@@ -1,10 +1,9 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.FavoritoResponseDTO;
 import com.example.demo.dto.ListaRequestDTO;
 import com.example.demo.dto.ListaResponseDTO;
 import com.example.demo.service.ListaService;
-import com.example.demo.repository.FavoritoEntity;
-import com.example.demo.repository.FavoritoJpaRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -16,15 +15,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/listas")
-@Tag(name = "Listas", description = "Endpoints para la gestin de listas de favoritos")
+@Tag(name = "Listas", description = "Endpoints para la gestión de listas de favoritos")
 public class ListaController {
 
     private final ListaService service;
-    private final FavoritoJpaRepository favoritoJpaRepository; // Directamente por simplicidad
 
-    public ListaController(ListaService service, FavoritoJpaRepository favoritoJpaRepository) {
+    public ListaController(ListaService service) {
         this.service = service;
-        this.favoritoJpaRepository = favoritoJpaRepository;
     }
 
     @PostMapping
@@ -40,20 +37,19 @@ public class ListaController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener una lista", description = "Devuelve los detalles de una lista especfica")
+    @Operation(summary = "Obtener una lista", description = "Devuelve los detalles de una lista específica")
     public ResponseEntity<ListaResponseDTO> obtenerLista(@PathVariable Long id) {
         return ResponseEntity.ok(service.obtenerPorId(id));
     }
 
     @GetMapping("/{id}/favoritos")
     @Operation(summary = "Favoritos de una lista", description = "Devuelve los favoritos que pertenecen a una lista")
-    public ResponseEntity<List<FavoritoEntity>> favoritosDeLista(@PathVariable Long id) {
-        // En una app real, mapeariamos esto a un DTO de respuesta
-        return ResponseEntity.ok(favoritoJpaRepository.findByListaId(id));
+    public ResponseEntity<List<FavoritoResponseDTO>> favoritosDeLista(@PathVariable Long id) {
+        return ResponseEntity.ok(service.listarFavoritosDeLista(id));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Eliminar una lista vaca", description = "Elimina una lista si no tiene favoritos")
+    @Operation(summary = "Eliminar una lista vacía", description = "Elimina una lista si no tiene favoritos")
     public ResponseEntity<Void> eliminarLista(@PathVariable Long id) {
         service.eliminar(id);
         return ResponseEntity.noContent().build();

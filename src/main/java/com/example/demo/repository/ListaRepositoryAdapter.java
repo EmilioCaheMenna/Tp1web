@@ -24,6 +24,13 @@ public class ListaRepositoryAdapter implements ListaRepository {
     }
 
     @Override
+    public List<Lista> findByUsuarioId(Long usuarioId) {
+        return jpaRepository.findByUsuarioId(usuarioId).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Optional<Lista> findById(Long id) {
         return jpaRepository.findById(id).map(this::toDomain);
     }
@@ -45,10 +52,19 @@ public class ListaRepositoryAdapter implements ListaRepository {
     }
 
     private Lista toDomain(ListaEntity entity) {
-        return new Lista(entity.getId(), entity.getNombre());
+        return new Lista(
+                entity.getId(),
+                entity.getNombre(),
+                entity.getUsuario() != null ? entity.getUsuario().getId() : null
+        );
     }
 
     private ListaEntity toEntity(Lista domain) {
-        return new ListaEntity(domain.getId(), domain.getNombre());
+        UsuarioEntity usuarioEntity = null;
+        if (domain.getUsuarioId() != null) {
+            usuarioEntity = new UsuarioEntity();
+            usuarioEntity.setId(domain.getUsuarioId());
+        }
+        return new ListaEntity(domain.getId(), domain.getNombre(), usuarioEntity);
     }
 }

@@ -32,6 +32,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Error interno del servidor"));
     }
 
+    @ExceptionHandler(ListaConFavoritosException.class)
+    public ResponseEntity<Map<String, String>> handleListaConFavoritosException(ListaConFavoritosException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", ex.getMessage()));
+    }
+
     // 3. Falla al consumir API externa (5xx)
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<Map<String, String>> handleExternalApiError(RestClientException ex) {

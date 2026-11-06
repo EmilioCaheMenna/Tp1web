@@ -1,0 +1,40 @@
+### POST /api/listas (crear)
+POST http://localhost:8080/api/listas
+Content-Type: application/json
+
+{
+  "nombre": "Mi Lista de Prueba"
+}
+
+### POST /api/listas (crear destino)
+POST http://localhost:8080/api/listas
+Content-Type: application/json
+
+{
+  "nombre": "Lista Destino"
+}
+
+### POST /api/favoritos (crear favorito)
+POST http://localhost:8080/api/favoritos
+Content-Type: application/json
+
+{
+  "productoId": 1,
+  "listaId": 1,
+  "notaPersonal": "Nota de prueba"
+}
+
+### GET /api/listas/1/favoritos
+GET http://localhost:8080/api/listas/1/favoritos
+
+### DELETE /api/listas/1 (debería fallar con 409 Conflict)
+DELETE http://localhost:8080/api/listas/1
+
+### POST /api/listas/1/mover-favoritos?destinoId=2 (mover)
+POST http://localhost:8080/api/listas/1/mover-favoritos?destinoId=2
+
+### GET /api/listas/2/favoritos (ahora debería estar aquí)
+GET http://localhost:8080/api/listas/2/favoritos
+
+### DELETE /api/listas/1 (ya debería estar eliminada al mover)
+DELETE http://localhost:8080/api/listas/1
